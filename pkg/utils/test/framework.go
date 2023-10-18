@@ -190,7 +190,7 @@ func (f Framework) WaitUntilKeplerCondition(name string, t v1alpha1.ConditionTyp
 
 			condition, _ := k8s.FindCondition(k.Status.Conditions, t)
 			return condition.Status == v1alpha1.ConditionTrue, nil
-		})
+		}, PollInterval(1*time.Minute))
 	return &k
 }
 

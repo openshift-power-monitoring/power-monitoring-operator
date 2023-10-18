@@ -141,7 +141,6 @@ func TestTaint_WithToleration(t *testing.T) {
 	f.AssertResourceExists(components.Namespace, "", &corev1.Namespace{})
 	ds := appsv1.DaemonSet{}
 	f.AssertResourceExists(exporter.DaemonSetName, components.Namespace, &ds)
-
 	kepler := f.WaitUntilKeplerCondition("kepler", v1alpha1.Available)
 	assert.EqualValues(t, len(nodes), kepler.Status.NumberAvailable)
 
