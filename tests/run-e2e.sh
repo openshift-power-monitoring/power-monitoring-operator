@@ -18,7 +18,7 @@ declare -r OPERATOR_DEPLOY_NAME="kepler-operator-controller"
 declare -r OPERATOR_RELEASED_BUNDLE="quay.io/sustainable_computing_io/$OPERATOR-bundle"
 
 declare IMG_BASE="${IMG_BASE:-localhost:5001/$OPERATOR}"
-# NOTE: this vars are iniitialized in init_operator_img
+# NOTE: this vars are initialized in init_operator_img
 declare OPERATOR_IMG=""
 declare BUNDLE_IMG=""
 
