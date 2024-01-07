@@ -1,96 +1,108 @@
 #!/usr/bin/env bash
+
+# copyright 2024.
+#
+# licensed under the apache license, version 2.0 (the "license");
+# you may not use this file except in compliance with the license.
+# you may obtain a copy of the license at
+#
+#     http://www.apache.org/licenses/license-2.0
+#
+# unless required by applicable law or agreed to in writing, software
+# distributed under the license is distributed on an "as is" basis,
+# without warranties or conditions of any kind, either express or implied.
+# see the license for the specific language governing permissions and
+# limitations under the license.
+#
+
 set -eu -o pipefail
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 declare -r PROJECT_ROOT
-declare -r powermon_bundle_package_name="power-monitoring-operator-bundle-container"
+
+declare -r POWERMON_BUNDLE="power-monitoring-operator-bundle-container"
+declare -r TMP_DIR="$PROJECT_ROOT/tmp"
+declare -r BIN_DIR="$TMP_DIR/bin"
 declare -r OCP_VERSION=${OCP_VERSION:-'v4.13'}
+
+declare INDEX_IMG=""
 
 source "$PROJECT_ROOT/hack/utils.bash"
 
-function check_prereq {
-  header "checking pre requisites..."
-  if ! command -v jq &> /dev/null
-  then
-      err "jq could not be found. Please install jq first."
-      exit
-  fi
-  if ! command -v oc &> /dev/null
-  then
-      err "oc could not be found. Please install oc first."
-      exit
-  fi
-  if ! command -v podman &> /dev/null
-  then
-      err "podman could not be found. Please install podman first."
-      exit
-  fi
-  ok "all prereqs ok.."
+ensure_all_tools() {
+	header "Ensuring all tools are installed"
+	"$PROJECT_ROOT/hack/tools.sh" all
 }
 
-function get_index_image {
-  local index_image="noimage"
-  local package=$1
-  local requested_ocp_version=$2
-  messages=$(curl -s 'https://datagrepper.engineering.redhat.com/raw?topic=/topic/VirtualTopic.eng.ci.redhat-container-image.index.built&delta=824000&contains='$package)
+validate_podman() {
+	header "Validating podman"
 
-  local i=0
-  local bundle=""
-  while true
-  do
-    message=$(echo $messages | jq --argjson i $i '.raw_messages[$i]')
-    bundle=$(echo $message | jq -r '.msg.index.added_bundle_images[0]')
-    version=$(echo $bundle| awk -F':' '{print $2}')
-	ocp_version=$(echo $message | jq -r '.msg.index.ocp_version')
-    if [[ $version == 0.1* ]] && [[ $ocp_version == "$requested_ocp_version" ]];
-    then
-      index_image=$(echo $message | jq -r '.msg.index.index_image')
-      break
-    else
-      i=$(expr $i + 1)
-    fi
-  done
-  ok "index image found: $index_image"
-  brew_index_image=$(echo $index_image | awk -F':' '{print "brew.registry.redhat.io/rh-osbs/iib:"$2}')
-  echo $brew_index_image
+	command -v podman >/dev/null 2>&1 || {
+		fail "No podman found"
+		info "Please install podman or make sure its running"
+		return 1
+	}
 }
 
-function add_brew_registry_credentials(){
-  header "Getting credentials for brew registry"
-  info "getting token from employee-token-manager"
-  local tokens=$(curl --negotiate -u : https://employee-token-manager.registry.redhat.com/v1/tokens -s)
-  if [[ "$?" != "0" ]] || [[ "$tokens" == "null" ]] || [[ "$tokens" == "" ]];
-  then
-	err "could not get token. \n\
-    please use the following command to create a token and retry the script. \n\
-    curl --negotiate -u : -X POST -H 'Content-Type: application/json' --data '{\"description\":\"for testing cpaas built powermon images on openshift 4 cluster\"}' https://employee-token-manager.registry.redhat.com/v1/tokens -s
-	"
-	exit -1
-  fi
-  ok "found token..."
-  local username=$(echo $tokens | jq 'last' | jq -r  '.credentials.username')
-  local password=$(echo $tokens | jq 'last' | jq -r  '.credentials.password')
-  #info "username: $username, password: $password"
+get_index_image() {
+	header "Fetch index image"
+	local url="https://datagrepper.engineering.redhat.com/raw?topic=/topic/VirtualTopic.eng.ci.redhat-container-image.index.built&delta=824000&contains=$POWERMON_BUNDLE"
+	local ret=0
 
-  info "getting auth from cluster"
-  run oc get secret/pull-secret -n openshift-config -o json | jq -r '.data.".dockerconfigjson"' | base64 -d > authfile
+	INDEX_IMG=$(curl -s "$url" |
+		jq --arg requested_ocp_version "$OCP_VERSION" -r \
+			'.raw_messages[] |
+      select(.msg.index.ocp_version == $requested_ocp_version) |
+        .msg.index.index_image' |
+		head -n 1 | awk -F':' '{print "brew.registry.redhat.io/rh-osbs/iib:"$2}')
 
-  info "logging to brew registry"
-  run podman login --authfile authfile --username "$username" --password "$password" brew.registry.redhat.io
+	[[ -n $INDEX_IMG && $INDEX_IMG != "null" ]] || {
+		ret=1
+		err "No matching index image found. Please check if provided OCP version is available or connected to VPN!"
+		return $ret
+	}
+	ok "Using index image: $INDEX_IMG"
+	return $ret
 
-  info "set auth to cluster"
-  run oc set data secret/pull-secret -n openshift-config --from-file=.dockerconfigjson=authfile
 }
 
+add_brew_registry() {
+	header "Getting credentials for brew registry"
+	local url="https://employee-token-manager.registry.redhat.com/v1/tokens"
+	local ret=0
 
-function patch_operator_hub(){
-  header "Patching Operator Hub to disable default sources.."
-  run oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]'
+	! token=$(curl --negotiate -u : $url -s) || [[ -z $token ]] || [[ $token == "null" ]] && {
+		ret=1
+		err "Could not get token. Please use the following command to create a token and retry the script. Make sure to be connected on VPN:
+curl --negotiate -u : -X POST -H 'Content-Type: application/json' --data '{\"description\":\"for testing cpaas built powermon images on openshift cluster\"}' $url -s"
+		return $ret
+	}
+
+	ok "Found token..."
+
+	username=$(echo "$token" | jq 'last' | jq -r '.credentials.username')
+	password=$(echo "$token" | jq 'last' | jq -r '.credentials.password')
+
+	info "Getting auth from cluster"
+	run oc get secret/pull-secret -n openshift-config -o json |
+		jq -r '.data.".dockerconfigjson"' | base64 -d >"$TMP_DIR/authfile"
+
+	info "Logging to brew registry"
+	run podman login --authfile "$TMP_DIR/authfile" --username "$username" --password "$password" brew.registry.redhat.io || {
+		ret=1
+		fail "Logging to brew registry failed"
+		return $ret
+	}
+
+	info "Set auth to cluster"
+	run oc set data secret/pull-secret -n openshift-config --from-file=.dockerconfigjson="$TMP_DIR/authfile"
+
+	return $ret
 }
 
-function create_icsp(){
-  header "Creating ImageContentSourcePolicy to mirror images.."
-  run cat <<EOF | oc apply -f -
+create_icsp() {
+	header "Creating ImageContentSourcePolicy to mirror images.."
+	run oc apply -f - <<EOF
   apiVersion: operator.openshift.io/v1alpha1
   kind: ImageContentSourcePolicy
   metadata:
@@ -109,39 +121,45 @@ function create_icsp(){
 EOF
 }
 
-function add_catalog_source(){
-  header "Adding CatalogSource for power monitoring with index Image..."
-  local index_image=$1
-  run cat <<EOF | oc apply -f -
+add_catalog_source() {
+	header "Adding CatalogSource for power monitoring with index Image..."
+	run oc apply -f - <<EOF
   apiVersion: operators.coreos.com/v1alpha1
   kind: CatalogSource
   metadata:
-    name: rc-powermon-operator-catalog
+    name: powermon-operator-catalog
     namespace: openshift-marketplace
   spec:
     sourceType: grpc
-    image: $index_image
+    image: $INDEX_IMG
     displayName: Openshift Power Monitoring
     publisher: Power Mon RC Images
 EOF
 }
 
+main() {
+	export PATH="$BIN_DIR:$PATH"
+	ensure_all_tools
 
-main(){
+	validate_podman || {
+		line 60 heavy
+		fail "Fix issues reported above and rerun the script"
+		return 1
+	}
 
-  check_prereq
-  header "Getting index image from CVP builds"
-  local index_image="noimage"
-  index_image=$(get_index_image $powermon_bundle_package_name $OCP_VERSION)
-  ok "using index image: ${index_image}"
-  add_brew_registry_credentials
-  patch_operator_hub
-  create_icsp
-  add_catalog_source $index_image
+	export OCP_VERSION
+	get_index_image || {
+		line 60 heavy
+		die "Fail to get index image"
+	}
+	add_brew_registry || {
+		line 60 heavy
+		die "Fail to add brew registry"
+	}
+	create_icsp
+	add_catalog_source
 
-  header "All Done"
-
-  ok "Wait for few minutes and use OperatorHub in cluster to install Power Monitoring Operator."
+	header "All Done"
 }
 
 main "$@"
