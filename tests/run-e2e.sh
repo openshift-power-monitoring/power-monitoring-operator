@@ -31,7 +31,6 @@ declare SHOW_USAGE=false
 declare LOGS_DIR="tmp/e2e"
 declare OPERATORS_NS="operators"
 declare TEST_TIMEOUT="15m"
-# declare -a PORT_FORWARDED_PIDS=()
 
 cleanup() {
 	info "Cleaning up ..."
