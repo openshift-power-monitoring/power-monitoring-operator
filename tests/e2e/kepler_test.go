@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 The Kepler Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package e2e
 
 import (
@@ -16,6 +19,10 @@ import (
 )
 
 func TestKepler_Deletion(t *testing.T) {
+	if skipKeplerTests {
+		t.Skip("Skipping Kepler test")
+	}
+
 	f := test.NewFramework(t)
 
 	// pre-condition: ensure kepler exists
@@ -39,10 +46,14 @@ func TestKepler_Deletion(t *testing.T) {
 }
 
 func TestKepler_Reconciliation(t *testing.T) {
+	if skipKeplerTests {
+		t.Skip("Skipping Kepler test")
+	}
+
 	f := test.NewFramework(t)
 
 	// pre-condition
-	f.AssertNoResourceExists("kepler", "", &v1alpha1.Kepler{}, test.NoWait())
+	f.AssertNoResourceExists("kepler", "", &v1alpha1.Kepler{})
 
 	// when
 	k := f.CreateKepler("kepler")
@@ -69,16 +80,24 @@ func TestKepler_Reconciliation(t *testing.T) {
 }
 
 func TestBadKepler_Reconciliation(t *testing.T) {
+	if skipKeplerTests {
+		t.Skip("Skipping Kepler test")
+	}
+
 	f := test.NewFramework(t)
 	// Ensure Kepler is not deployed (by any chance)
 	f.AssertNoResourceExists("kepler", "", &v1alpha1.Kepler{}, test.Timeout(10*time.Second))
-	f.AssertNoResourceExists("invalid-name", "", &v1alpha1.Kepler{}, test.NoWait())
+	f.AssertNoResourceExists("invalid-name", "", &v1alpha1.Kepler{})
 	kepler := f.NewKepler("invalid-name")
 	err := f.Patch(&kepler)
 	assert.ErrorContains(t, err, "denied the request")
 }
 
 func TestNodeSelector(t *testing.T) {
+	if skipKeplerTests {
+		t.Skip("Skipping Kepler test")
+	}
+
 	f := test.NewFramework(t)
 	// Ensure Kepler is not deployed (by any chance)
 	f.AssertNoResourceExists("kepler", "", &v1alpha1.Kepler{}, test.Timeout(10*time.Second))
@@ -107,6 +126,10 @@ func TestNodeSelector(t *testing.T) {
 }
 
 func TestNodeSelectorUnavailableLabel(t *testing.T) {
+	if skipKeplerTests {
+		t.Skip("Skipping Kepler test")
+	}
+
 	f := test.NewFramework(t)
 	// Ensure Kepler is not deployed (by any chance)
 	f.AssertNoResourceExists("kepler", "", &v1alpha1.Kepler{}, test.Timeout(10*time.Second))
@@ -132,6 +155,10 @@ func TestNodeSelectorUnavailableLabel(t *testing.T) {
 }
 
 func TestTaint_WithToleration(t *testing.T) {
+	if skipKeplerTests {
+		t.Skip("Skipping Kepler test")
+	}
+
 	f := test.NewFramework(t)
 	// Ensure Kepler is not deployed (by any chance)
 	f.AssertNoResourceExists("kepler", "", &v1alpha1.Kepler{}, test.Timeout(10*time.Second))
@@ -165,6 +192,10 @@ func TestTaint_WithToleration(t *testing.T) {
 }
 
 func TestBadTaint_WithToleration(t *testing.T) {
+	if skipKeplerTests {
+		t.Skip("Skipping Kepler test")
+	}
+
 	f := test.NewFramework(t)
 	// Ensure Kepler is not deployed (by any chance)
 	f.AssertNoResourceExists("kepler", "", &v1alpha1.Kepler{}, test.Timeout(10*time.Second))

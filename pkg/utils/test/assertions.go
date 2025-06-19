@@ -1,18 +1,5 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-FileCopyrightText: 2025 The Kepler Authors
+// SPDX-License-Identifier: Apache-2.0
 
 package test
 
@@ -71,11 +58,13 @@ func assertOption(fns ...AssertOptionFn) AssertOption {
 	return option
 }
 
-func (f Framework) WaitUntil(msg string, fn wait.ConditionFunc, fns ...AssertOptionFn) {
+func (f Framework) WaitUntil(msg string, fn wait.ConditionWithContextFunc, fns ...AssertOptionFn) {
 	f.T.Helper()
 	opt := assertOption(fns...)
+	ctx, cancel := context.WithTimeout(context.Background(), opt.WaitTimeout)
+	defer cancel()
 
-	err := wait.PollImmediate(opt.PollInterval, opt.WaitTimeout, fn)
+	err := wait.PollUntilContextTimeout(ctx, opt.PollInterval, opt.WaitTimeout, true, fn)
 	assert.NoError(f.T, err, "failed waiting for %s (timeout %v)", msg, opt.WaitTimeout)
 }
 
@@ -85,8 +74,11 @@ func (f Framework) AssertResourceExists(name, ns string, obj client.Object, fns 
 	key := types.NamespacedName{Name: name, Namespace: ns}
 
 	var getErr error
-	wait.PollImmediate(opt.PollInterval, opt.WaitTimeout, func() (bool, error) {
-		getErr = f.client.Get(context.Background(), key, obj)
+	ctx, cancel := context.WithTimeout(context.Background(), opt.WaitTimeout)
+	defer cancel()
+
+	wait.PollUntilContextTimeout(ctx, opt.PollInterval, opt.WaitTimeout, true, func(ctx context.Context) (bool, error) {
+		getErr = f.client.Get(ctx, key, obj)
 		// NOTE: return true (stop loop) if resource exists
 		return getErr == nil, nil
 	})
@@ -99,13 +91,15 @@ func (f Framework) AssertNoResourceExists(name, ns string, obj client.Object, fn
 	opt := assertOption(fns...)
 	key := types.NamespacedName{Name: name, Namespace: ns}
 
-	err := wait.PollImmediate(opt.PollInterval, opt.WaitTimeout, func() (bool, error) {
-		getErr := f.client.Get(context.Background(), key, obj)
+	ctx, cancel := context.WithTimeout(context.Background(), opt.WaitTimeout)
+	defer cancel()
+
+	err := wait.PollUntilContextTimeout(ctx, opt.PollInterval, opt.WaitTimeout, true, func(ctx context.Context) (bool, error) {
+		getErr := f.client.Get(ctx, key, obj)
 		// NOTE: return true (stop loop) if resource does not exist
 		return errors.IsNotFound(getErr), nil
 	})
-
-	if wait.Interrupted(err) {
+	if err != nil {
 		f.T.Errorf("%s (%v) exists after %v", k8s.GVKName(obj), key, opt.WaitTimeout)
 	}
 }
@@ -125,7 +119,20 @@ func (f Framework) AssertInternalStatus(name string, fns ...AssertOptionFn) {
 	assert.NoError(f.T, err, "unable to get available condition")
 	assert.Equal(f.T, available.ObservedGeneration, ki.Generation)
 	assert.Equal(f.T, available.Status, v1alpha1.ConditionTrue)
+}
 
-	f.AssertModelServerStatus(name, fns...)
-	f.AssertEstimatorStatus(name, fns...)
+func (f Framework) AssertPowerMonitorInternalStatus(name string, fns ...AssertOptionFn) {
+	pmi := f.WaitUntilPowerMonitorInternalCondition(name, v1alpha1.Reconciled, v1alpha1.ConditionTrue, fns...)
+	assert.Equal(f.T, []corev1.Toleration{{Operator: "Exists"}}, pmi.Spec.Kepler.Deployment.Tolerations)
+
+	reconciled, err := k8s.FindCondition(pmi.Status.Conditions, v1alpha1.Reconciled)
+	assert.NoError(f.T, err, "unable to get reconciled condition")
+	assert.Equal(f.T, reconciled.ObservedGeneration, pmi.Generation)
+	assert.Equal(f.T, reconciled.Status, v1alpha1.ConditionTrue)
+
+	pmi = f.WaitUntilPowerMonitorInternalCondition(name, v1alpha1.Available, v1alpha1.ConditionTrue, fns...)
+	available, err := k8s.FindCondition(pmi.Status.Conditions, v1alpha1.Available)
+	assert.NoError(f.T, err, "unable to get available condition")
+	assert.Equal(f.T, available.ObservedGeneration, pmi.Generation)
+	assert.Equal(f.T, available.Status, v1alpha1.ConditionTrue)
 }

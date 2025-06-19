@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
-#
-# This file is part of the Kepler project
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#     http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2023 The Kepler Contributors
-#
 
 set -eu -o pipefail
 
@@ -30,10 +13,10 @@ declare -r LOCAL_BIN="$PROJECT_ROOT/tmp/bin"
 # versions
 declare -r KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-v5.4.3}
 declare -r CONTROLLER_TOOLS_VERSION=${CONTROLLER_TOOLS_VERSION:-v0.17.2}
-declare -r OPERATOR_SDK_VERSION=${OPERATOR_SDK_VERSION:-v1.36.1}
+declare -r OPERATOR_SDK_VERSION=${OPERATOR_SDK_VERSION:-v1.39.1}
 declare -r YQ_VERSION=${YQ_VERSION:-v4.34.2}
 declare -r CRDOC_VERSION=${CRDOC_VERSION:-v0.6.2}
-declare -r OC_VERSION=${OC_VERSION:-4.13.0}
+declare -r OC_VERSION=${OC_VERSION:-4.18.1}
 declare -r KUBECTL_VERSION=${KUBECTL_VERSION:-v1.28.4}
 declare -r SHFMT_VERSION=${SHFMT_VERSION:-v3.7.0}
 declare -r JQ_VERSION=${JQ_VERSION:-1.7}

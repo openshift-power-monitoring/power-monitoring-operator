@@ -26,7 +26,12 @@ GOARCH := $(shell go env GOARCH)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= $(shell cat VERSION)
 
+BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
+
 KEPLER_VERSION ?=release-0.7.12
+KEPLER_REBOOT_VERSION ?=v0.0.9
 
 # IMG_BASE and KEPLER_IMG_BASE are set to distinguish between Operator-specific images and Kepler-Specific images.
 # IMG_BASE is used for building and pushing operator related images.
@@ -34,6 +39,7 @@ KEPLER_VERSION ?=release-0.7.12
 # This separation ensures that local development and deployment of operator images do not interfere with Kepler images.
 IMG_BASE ?= quay.io/sustainable_computing_io
 KEPLER_IMG_BASE ?= quay.io/sustainable_computing_io/kepler
+KEPLER_REBOOT_IMG_BASE ?= quay.io/sustainable_computing_io/kepler-reboot
 
 # OPERATOR_IMG define the image:tag used for the operator
 # You can use it as an arg. (E.g make operator-build OPERATOR_IMG=<some-registry>:<version>)
@@ -41,9 +47,17 @@ OPERATOR_IMG ?= $(IMG_BASE)/kepler-operator:$(VERSION)
 ADDITIONAL_TAGS ?=
 
 KEPLER_IMG ?= $(KEPLER_IMG_BASE):$(KEPLER_VERSION)
+KEPLER_REBOOT_IMG ?= $(KEPLER_REBOOT_IMG_BASE):$(KEPLER_REBOOT_VERSION)
 
 # E2E_TEST_IMG defines the image:tag used for the e2e test image
 E2E_TEST_IMG ?=$(IMG_BASE)/kepler-operator-e2e:$(VERSION)
+
+LDFLAGS=-ldflags "\
+	-X github.com/sustainable.computing.io/kepler-operator/pkg/version.version=$(VERSION) \
+	-X github.com/sustainable.computing.io/kepler-operator/pkg/version.buildTime=$(BUILD_TIME) \
+	-X github.com/sustainable.computing.io/kepler-operator/pkg/version.gitBranch=$(GIT_BRANCH) \
+	-X github.com/sustainable.computing.io/kepler-operator/pkg/version.gitCommit=$(GIT_COMMIT) \
+"
 
 .PHONY: fresh
 fresh: ## default target - sets up a k8s cluster with images ready for deployment
@@ -53,7 +67,7 @@ fresh: ## default target - sets up a k8s cluster with images ready for deploymen
 		bundle bundle-build \
 		bundle-push \
 		IMG_BASE=localhost:5001 VERSION=0.0.0-dev ;\
-	
+
 	@echo -e '\n        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
 	@echo -e ' 🎊  Operator has been successfully built and deployed! 🎊 \n'
 	@kubectl cluster-info
@@ -110,6 +124,10 @@ vet: ## Run go vet against code.
 test:  fmt vet  ## Run tests.
 		go test ./pkg/... -coverprofile cover.out
 
+.PHONY: coverage
+coverage: test ## Run tests and generate coverage report.
+	go tool cover -html=cover.out -o cover.html
+
 .PHONY: docs
 docs: crdoc manifests ## Generate docs.
 	$(CRDOC) --resources config/crd/bases --output docs/api.md
@@ -152,8 +170,8 @@ cluster-down: ## delete the local development cluster
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager ./cmd/...
+build: manifests generate ## Build manager binary.
+	CGO_ENABLED=0 go build $(LDFLAGS) -o bin/manager ./cmd/...
 
 OPENSHIFT ?= true
 RUN_ARGS ?=
@@ -162,6 +180,7 @@ RUN_ARGS ?=
 run: install fmt vet ## Run a controller from your host against openshift cluster
 	go run ./cmd/... \
 		--kepler.image=$(KEPLER_IMG) \
+		--kepler-reboot.image=$(KEPLER_REBOOT_IMG) \
 		--zap-devel --zap-log-level=8 \
 		--openshift=$(OPENSHIFT) \
 		$(RUN_ARGS) \
@@ -211,8 +230,6 @@ endef
 operator-build: manifests generate test ## Build docker image with the manager.
 	go mod tidy
 	docker build -t $(OPERATOR_IMG) \
-		--build-arg TARGETOS=$(GOOS) \
-		--build-arg TARGETARCH=$(GOARCH) \
 		--platform=linux/$(GOARCH) .
 	$(call docker_tag,$(OPERATOR_IMG),$(ADDITIONAL_TAGS))
 
@@ -249,6 +266,7 @@ deploy: install ## Deploy controller to the K8s cluster specified in ~/.kube/con
 	$(KUSTOMIZE) build config/default/k8s | \
 		sed  -e "s|<OPERATOR_IMG>|$(OPERATOR_IMG)|g" \
 		     -e "s|<KEPLER_IMG>|$(KEPLER_IMG)|g" \
+		     -e "s|<KEPLER_REBOOT_IMG>|$(KEPLER_REBOOT_IMG)|g" \
 		| tee tmp/deploy.yaml | \
 		kubectl apply --server-side --force-conflicts -f -
 
@@ -342,6 +360,7 @@ VERSION_REPLACED ?=
 bundle: generate manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	OPERATOR_IMG=$(OPERATOR_IMG) \
 	KEPLER_IMG=$(KEPLER_IMG) \
+	KEPLER_REBOOT_IMG=$(KEPLER_REBOOT_IMG) \
 	VERSION=$(VERSION) \
 	VERSION_REPLACED=$(VERSION_REPLACED) \
 	BUNDLE_GEN_FLAGS='$(BUNDLE_GEN_FLAGS)' \

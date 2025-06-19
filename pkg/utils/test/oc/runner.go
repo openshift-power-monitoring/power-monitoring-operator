@@ -1,18 +1,5 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-FileCopyrightText: 2025 The Kepler Authors
+// SPDX-License-Identifier: Apache-2.0
 
 package oc
 
@@ -32,7 +19,7 @@ var log logr.Logger
 // Runner is for executing the command. It provides implementation for
 // the methods in oc.Command interface.
 // Other commands like oc.Exec, oc.Get, oc.Literal collect their arguments
-// and use Runner to run the commad with arguments.
+// and use Runner to run the command with arguments.
 // It provides different modes of executing the commands, Run/RunFor/Output/OutputFor
 //
 // As fas as possible, it is to be kept independent of oc command syntax.

@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
-#
-# This file is part of the Kepler project
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#     http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2022 The Kepler Contributors
-#
 
 set -eu -o pipefail
 
@@ -66,6 +49,7 @@ main() {
 		sed \
 			-e "s|<OPERATOR_IMG>|$OPERATOR_IMG|g" \
 			-e "s|<KEPLER_IMG>|$KEPLER_IMG|g" \
+			-e "s|<KEPLER_REBOOT_IMG>|$KEPLER_REBOOT_IMG|g" \
 			-e "s|<OLD_BUNDLE_VERSION>|$old_bundle_version|g" |
 		tee tmp/pre-bundle.yaml |
 		operator-sdk generate bundle "${gen_opts[@]}"
@@ -94,7 +78,7 @@ main() {
 	info "Adding additional metadata annotations"
 	cat <<-EOF >>bundle/metadata/annotations.yaml
 		# Annotations for OpenShift version
-		  com.redhat.openshift.versions: "v4.12-v4.17"
+		  com.redhat.openshift.versions: "v4.16-v4.19"
 	EOF
 
 	run operator-sdk bundle validate ./bundle \

@@ -10,8 +10,8 @@ declare -r MON_NS=openshift-monitoring
 declare -r UWM_NS=openshift-user-workload-monitoring
 declare -r CMO_CM=cluster-monitoring-config
 declare -r BACKUP_CMO_CFG="$BACKUP_DIR/cmo-cm.yaml"
-declare -r UWM_URL="https://docs.openshift.com/container-platform/latest/observability/monitoring/enabling-monitoring-for-user-defined-projects.html"
-declare -r UWM_CONFIG_URL="https://docs.openshift.com/container-platform/latest/observability/monitoring/configuring-the-monitoring-stack.html#configuring-the-monitoring-stack_configuring-the-monitoring-stack"
+declare -r UWM_URL="https://docs.redhat.com/documentation/openshift_container_platform/latest/html/monitoring/configuring-user-workload-monitoring"
+declare -r UWM_CONFIG_URL="https://docs.redhat.com/documentation/openshift_container_platform/latest/html/monitoring/configuring-user-workload-monitoring#preparing-to-configure-the-monitoring-stack-uwm"
 
 declare -r GRAFANA_NS=kepler-grafana
 declare -r GRAFANA_SA=grafana
@@ -45,7 +45,7 @@ validate_cluster() {
 		fail "No oc command found in PATH"
 		info "Please install oc"
 		cat <<-EOF
-			curl -sNL https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.16.0/openshift-client-linux.tar.gz |
+			curl -sNL https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.18.1/openshift-client-linux.tar.gz |
 			  tar -xzf - -C <install/path>
 		EOF
 		# NOTE: do not proceed without oc installed
@@ -68,7 +68,7 @@ validate_cluster() {
 		fail "oc version '$oc_version' should be at least 4.12.0"
 		info "install a newer version of oc"
 		cat <<-EOF
-			curl -sNL https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.13.0/openshift-client-linux.tar.gz |
+			curl -sNL https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.18.1/openshift-client-linux.tar.gz |
 			  tar -xzf - -C <install/path>
 		EOF
 		ret=1
@@ -181,8 +181,8 @@ show_restore_info() {
 	warn "😱 In the event cluster-monitoring-operator becomes 👉 degraded  😱"
 	cat <<-EOF
 
-		  * Restore the configuration $BACKUP_CMO_CFG 
-		  * Manually enable User Project Monitoring 
+		  * Restore the configuration $BACKUP_CMO_CFG
+		  * Manually enable User Project Monitoring
 			  💡 see: $UWM_URL
 		  * Rerun this script
 
@@ -310,7 +310,7 @@ show_key_info() {
 	# disable use find instead of ls
 	# shellcheck disable=SC2012
 	[[ -d "$BACKUP_DIR" ]] && cat <<-EOF
-		  📦 Cluster Monitoring Configuration 
+		  📦 Cluster Monitoring Configuration
 			    Backup Directory: $BACKUP_DIR
 			$(ls "$BACKUP_DIR" | sed -e "s|^|      • |g")
 	EOF

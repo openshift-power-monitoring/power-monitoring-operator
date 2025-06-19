@@ -1,18 +1,5 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-FileCopyrightText: 2025 The Kepler Authors
+// SPDX-License-Identifier: Apache-2.0
 
 package k8s
 
@@ -93,6 +80,7 @@ func VolumeFromConfigMap(name, cmName string) corev1.Volume {
 		},
 	}
 }
+
 func VolumeFromPVC(name, pvcName string) corev1.Volume {
 	return corev1.Volume{
 		Name: name,
@@ -199,4 +187,16 @@ func AllowsFromSCC(SCC *secv1.SecurityContextConstraints) SCCAllows {
 		AllowHostPID:             SCC.AllowHostPID,
 		AllowHostPorts:           SCC.AllowHostPorts,
 	}
+}
+
+func PortsFromService(s *corev1.Service) []corev1.ServicePort {
+	return s.Spec.Ports
+}
+
+func DataFromConfigMap(cm *corev1.ConfigMap) map[string]string {
+	return cm.Data
+}
+
+func LabelsFromConfigMap(cm *corev1.ConfigMap) map[string]string {
+	return cm.Labels
 }
