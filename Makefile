@@ -30,6 +30,18 @@ BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
 
+ifeq ($(GIT_COMMIT),)
+$(error GIT_COMMIT cannot be empty)
+endif
+
+ifeq ($(GIT_BRANCH),)
+$(error GIT_BRANCH cannot be empty)
+endif
+
+ifeq ($(VERSION),)
+$(error VERSION cannot be empty)
+endif
+
 KEPLER_VERSION ?=release-0.7.12
 KEPLER_REBOOT_VERSION ?=v0.0.9
 
@@ -121,7 +133,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test:  fmt vet  ## Run tests.
+test:  ## Run tests.
 		go test ./pkg/... -coverprofile cover.out
 
 .PHONY: coverage
@@ -170,7 +182,10 @@ cluster-down: ## delete the local development cluster
 ##@ Build
 
 .PHONY: build
-build: manifests generate ## Build manager binary.
+build: manifests generate build-manager ## Build manager binary.
+
+.PHONY: build-manager
+build-manager:
 	CGO_ENABLED=0 go build $(LDFLAGS) -o bin/manager ./cmd/...
 
 OPENSHIFT ?= true
@@ -227,9 +242,12 @@ endef
 # (i.e. docker build --platform linux/arm64 ). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: operator-build
-operator-build: manifests generate test ## Build docker image with the manager.
+operator-build: manifests generate ## Build docker image with the manager.
 	go mod tidy
 	docker build -t $(OPERATOR_IMG) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		--build-arg GIT_BRANCH=$(GIT_BRANCH) \
 		--platform=linux/$(GOARCH) .
 	$(call docker_tag,$(OPERATOR_IMG),$(ADDITIONAL_TAGS))
 
