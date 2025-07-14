@@ -9,4 +9,7 @@ metadata:
 spec:
   kepler:
     config:
-      logLevel: debug
+      logLevel: info
+    deployment:
+      security:
+        mode: none

@@ -42,8 +42,8 @@ ifeq ($(VERSION),)
 $(error VERSION cannot be empty)
 endif
 
-KEPLER_VERSION ?=release-0.7.12
-KEPLER_REBOOT_VERSION ?=v0.0.10
+KEPLER_VERSION ?=v0.10.0
+KUBE_RBAC_PROXY_VERSION ?=v0.19.0
 
 # IMG_BASE and KEPLER_IMG_BASE are set to distinguish between Operator-specific images and Kepler-Specific images.
 # IMG_BASE is used for building and pushing operator related images.
@@ -51,7 +51,7 @@ KEPLER_REBOOT_VERSION ?=v0.0.10
 # This separation ensures that local development and deployment of operator images do not interfere with Kepler images.
 IMG_BASE ?= quay.io/sustainable_computing_io
 KEPLER_IMG_BASE ?= quay.io/sustainable_computing_io/kepler
-KEPLER_REBOOT_IMG_BASE ?= quay.io/sustainable_computing_io/kepler-reboot
+KUBE_RBAC_PROXY_IMG_BASE ?= quay.io/brancz/kube-rbac-proxy
 
 # OPERATOR_IMG define the image:tag used for the operator
 # You can use it as an arg. (E.g make operator-build OPERATOR_IMG=<some-registry>:<version>)
@@ -59,7 +59,7 @@ OPERATOR_IMG ?= $(IMG_BASE)/kepler-operator:$(VERSION)
 ADDITIONAL_TAGS ?=
 
 KEPLER_IMG ?= $(KEPLER_IMG_BASE):$(KEPLER_VERSION)
-KEPLER_REBOOT_IMG ?= $(KEPLER_REBOOT_IMG_BASE):$(KEPLER_REBOOT_VERSION)
+KUBE_RBAC_PROXY_IMG ?= $(KUBE_RBAC_PROXY_IMG_BASE):$(KUBE_RBAC_PROXY_VERSION)
 
 # E2E_TEST_IMG defines the image:tag used for the e2e test image
 E2E_TEST_IMG ?=$(IMG_BASE)/kepler-operator-e2e:$(VERSION)
@@ -89,7 +89,7 @@ fresh: ## default target - sets up a k8s cluster with images ready for deploymen
 	@echo -e ' 🔔 Next step see kepler in action:'
 	@echo -e '    ❯   ./tmp/bin/operator-sdk run bundle localhost:5001/kepler-operator-bundle:0.0.0-dev \ '
 	@echo -e '         --install-mode AllNamespaces --namespace operators --skip-tls '
-	@echo -e '    ❯ kubectl apply -f config/samples/kepler.system_v1alpha1_kepler.yaml \n'
+	@echo -e '    ❯ kubectl apply -f config/samples/kepler.system_v1alpha1_powermonitor.yaml \n'
 	@echo -e '        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
 
 
@@ -197,7 +197,7 @@ RUN_ARGS ?=
 run: install fmt vet ## Run a controller from your host against openshift cluster
 	go run ./cmd/... \
 		--kepler.image=$(KEPLER_IMG) \
-		--kepler-reboot.image=$(KEPLER_REBOOT_IMG) \
+		--kube-rbac-proxy.image=$(KUBE_RBAC_PROXY_IMG) \
 		--zap-devel --zap-log-level=8 \
 		--openshift=$(OPENSHIFT) \
 		$(RUN_ARGS) \
@@ -286,7 +286,7 @@ deploy: install ## Deploy controller to the K8s cluster specified in ~/.kube/con
 	$(KUSTOMIZE) build config/default/k8s | \
 		sed  -e "s|<OPERATOR_IMG>|$(OPERATOR_IMG)|g" \
 		     -e "s|<KEPLER_IMG>|$(KEPLER_IMG)|g" \
-		     -e "s|<KEPLER_REBOOT_IMG>|$(KEPLER_REBOOT_IMG)|g" \
+		     -e "s|<KUBE_RBAC_PROXY_IMG>|$(KUBE_RBAC_PROXY_IMG)|g" \
 		| tee tmp/deploy.yaml | \
 		kubectl apply --server-side --force-conflicts -f -
 
@@ -380,7 +380,7 @@ VERSION_REPLACED ?=
 bundle: generate manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	OPERATOR_IMG=$(OPERATOR_IMG) \
 	KEPLER_IMG=$(KEPLER_IMG) \
-	KEPLER_REBOOT_IMG=$(KEPLER_REBOOT_IMG) \
+	KUBE_RBAC_PROXY_IMG=$(KUBE_RBAC_PROXY_IMG) \
 	VERSION=$(VERSION) \
 	VERSION_REPLACED=$(VERSION_REPLACED) \
 	BUNDLE_GEN_FLAGS='$(BUNDLE_GEN_FLAGS)' \

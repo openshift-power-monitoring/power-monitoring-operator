@@ -10,6 +10,7 @@ import (
 	"github.com/sustainable.computing.io/kepler-operator/api/v1alpha1"
 	"github.com/sustainable.computing.io/kepler-operator/pkg/components"
 	powermonitor "github.com/sustainable.computing.io/kepler-operator/pkg/components/power-monitor"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,6 +21,7 @@ import (
 // PowerMonitorDeployer deploys the PowerMonitor DaemonSet and ConfigMap for the given PowerMonitorInternal
 type PowerMonitorDeployer struct {
 	Pmi *v1alpha1.PowerMonitorInternal
+	Ds  *appsv1.DaemonSet
 }
 
 // Reconcile implements the PowerMonitorDeployer interface
@@ -29,20 +31,14 @@ func (r PowerMonitorDeployer) Reconcile(ctx context.Context, c client.Client, s 
 		return Result{Action: Stop, Error: fmt.Errorf("error creating config: %w", err)}
 	}
 
-	cfm := powermonitor.NewPowerMonitorConfigMap(components.Full, r.Pmi, additionalConfigs...)
-
-	ds := powermonitor.NewPowerMonitorDaemonSet(components.Full, r.Pmi)
-
-	powermonitor.MountConfigMapToDaemonSet(ds, cfm)
-
-	// Update the ConfigMap in the cluster
-	result := Updater{Owner: r.Pmi, Resource: cfm}.Reconcile(ctx, c, s)
-	if result.Error != nil {
-		return result
+	cfm, err := powermonitor.NewPowerMonitorConfigMap(components.Full, r.Pmi, additionalConfigs...)
+	if err != nil {
+		return Result{Action: Stop, Error: fmt.Errorf("error creating configmap: %w", err)}
 	}
+	powermonitor.AnnotateDaemonSetWithConfigMapHash(r.Ds, cfm)
 
-	// Update the DaemonSet
-	return Updater{Owner: r.Pmi, Resource: ds}.Reconcile(ctx, c, s)
+	// Update the ConfigMap
+	return Updater{Owner: r.Pmi, Resource: cfm}.Reconcile(ctx, c, s)
 }
 
 // readAdditionalConfigs fetches the ConfigMaps referenced in the spec, merges them, and returns the final config data

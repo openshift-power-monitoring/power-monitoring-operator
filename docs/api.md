@@ -1354,6 +1354,13 @@ PowerMonitorInternalSpec defines the desired state of PowerMonitorInternalSpec
         </td>
         <td>true</td>
       </tr><tr>
+        <td><b>kubeRbacProxyImage</b></td>
+        <td>string</td>
+        <td>
+          <br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
         <td><b>nodeSelector</b></td>
         <td>map[string]string</td>
         <td>
@@ -1363,12 +1370,55 @@ PowerMonitorInternalSpec defines the desired state of PowerMonitorInternalSpec
         </td>
         <td>false</td>
       </tr><tr>
+        <td><b><a href="#powermonitorinternalspeckeplerdeploymentsecurity">security</a></b></td>
+        <td>object</td>
+        <td>
+          If set, defines the security mode and allowed SANames<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
         <td><b><a href="#powermonitorinternalspeckeplerdeploymenttolerationsindex">tolerations</a></b></td>
         <td>[]object</td>
         <td>
           If specified, define Pod's tolerations<br/>
           <br/>
             <i>Default</i>: [map[effect: key: operator:Exists value:]]<br/>
+        </td>
+        <td>false</td>
+      </tr></tbody>
+</table>
+
+
+### PowerMonitorInternal.spec.kepler.deployment.security
+<sup><sup>[↩ Parent](#powermonitorinternalspeckeplerdeployment)</sup></sup>
+
+
+
+If set, defines the security mode and allowed SANames
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b>allowedSANames</b></td>
+        <td>[]string</td>
+        <td>
+          <br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>mode</b></td>
+        <td>enum</td>
+        <td>
+          <br/>
+          <br/>
+            <i>Enum</i>: none, rbac<br/>
         </td>
         <td>false</td>
       </tr></tbody>
@@ -1473,6 +1523,49 @@ These AdditionalConfigMaps must exist in the same namespace as PowerMonitor comp
           <br/>
           <br/>
             <i>Default</i>: info<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>maxTerminated</b></td>
+        <td>integer</td>
+        <td>
+          MaxTerminated controls terminated workload tracking behavior
+Negative values: track unlimited terminated workloads (no capacity limit)
+Zero: disable terminated workload tracking completely
+Positive values: track top N terminated workloads by energy consumption<br/>
+          <br/>
+            <i>Format</i>: int32<br/>
+            <i>Default</i>: 500<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>metricLevels</b></td>
+        <td>[]enum</td>
+        <td>
+          MetricLevels specifies which metrics levels to export
+Valid values are combinations of: node, process, container, vm, pod<br/>
+          <br/>
+            <i>Default</i>: [node pod vm]<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>sampleRate</b></td>
+        <td>string</td>
+        <td>
+          SampleRate specifies the interval for monitoring resources (processes, containers, vms, etc.)
+Must be a positive duration (e.g., "5s", "1m", "30s"). Negative values are not allowed.<br/>
+          <br/>
+            <i>Default</i>: 5s<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>staleness</b></td>
+        <td>string</td>
+        <td>
+          Staleness specifies how long to wait before considering calculated power values as stale
+Must be a positive duration (e.g., "500ms", "5s", "1h"). Negative values are not allowed.<br/>
+          <br/>
+            <i>Default</i>: 500ms<br/>
         </td>
         <td>false</td>
       </tr></tbody>
@@ -1912,6 +2005,49 @@ These AdditionalConfigMaps must exist in the same namespace as PowerMonitor comp
             <i>Default</i>: info<br/>
         </td>
         <td>false</td>
+      </tr><tr>
+        <td><b>maxTerminated</b></td>
+        <td>integer</td>
+        <td>
+          MaxTerminated controls terminated workload tracking behavior
+Negative values: track unlimited terminated workloads (no capacity limit)
+Zero: disable terminated workload tracking completely
+Positive values: track top N terminated workloads by energy consumption<br/>
+          <br/>
+            <i>Format</i>: int32<br/>
+            <i>Default</i>: 500<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>metricLevels</b></td>
+        <td>[]enum</td>
+        <td>
+          MetricLevels specifies which metrics levels to export
+Valid values are combinations of: node, process, container, vm, pod<br/>
+          <br/>
+            <i>Default</i>: [node pod vm]<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>sampleRate</b></td>
+        <td>string</td>
+        <td>
+          SampleRate specifies the interval for monitoring resources (processes, containers, vms, etc.)
+Must be a positive duration (e.g., "5s", "1m", "30s"). Negative values are not allowed.<br/>
+          <br/>
+            <i>Default</i>: 5s<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>staleness</b></td>
+        <td>string</td>
+        <td>
+          Staleness specifies how long to wait before considering calculated power values as stale
+Must be a positive duration (e.g., "500ms", "5s", "1h"). Negative values are not allowed.<br/>
+          <br/>
+            <i>Default</i>: 500ms<br/>
+        </td>
+        <td>false</td>
       </tr></tbody>
 </table>
 
@@ -1969,12 +2105,55 @@ ConfigMapRef defines a reference to a ConfigMap
         </td>
         <td>false</td>
       </tr><tr>
+        <td><b><a href="#powermonitorspeckeplerdeploymentsecurity">security</a></b></td>
+        <td>object</td>
+        <td>
+          If set, defines the security mode and allowed SANames<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
         <td><b><a href="#powermonitorspeckeplerdeploymenttolerationsindex">tolerations</a></b></td>
         <td>[]object</td>
         <td>
           If specified, define Pod's tolerations<br/>
           <br/>
             <i>Default</i>: [map[effect: key: operator:Exists value:]]<br/>
+        </td>
+        <td>false</td>
+      </tr></tbody>
+</table>
+
+
+### PowerMonitor.spec.kepler.deployment.security
+<sup><sup>[↩ Parent](#powermonitorspeckeplerdeployment)</sup></sup>
+
+
+
+If set, defines the security mode and allowed SANames
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b>allowedSANames</b></td>
+        <td>[]string</td>
+        <td>
+          <br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b>mode</b></td>
+        <td>enum</td>
+        <td>
+          <br/>
+          <br/>
+            <i>Enum</i>: none, rbac<br/>
         </td>
         <td>false</td>
       </tr></tbody>
